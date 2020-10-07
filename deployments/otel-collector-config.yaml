@@ -1,0 +1,25 @@
+receivers:
+  otlp:
+    protocols:
+      grpc:
+      http:
+        endpoint: "localhost:55681"
+        cors_allowed_origins:
+        - http://*
+        # Origins can have wildcards with *, use * by itself to match any origin.
+        - https://*
+
+processors:
+  batch:
+  queued_retry:
+
+exporters:
+  jaeger:
+    endpoint: jaeger-all-in-one:14250
+    insecure: true
+
+service:
+  pipelines:
+    traces:
+      receivers: [otlp]
+      exporters: [jaeger]
