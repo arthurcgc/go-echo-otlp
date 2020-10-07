@@ -29,7 +29,7 @@ Or
 make
 ```
 
-To check if everything is in ship-shape, just run a curl in your local terminal to http://localhost:9999/hello and check the Jager UI at: [](http://localhost:16686) for the tracing info
+To check if everything is in ship-shape, just run a curl in your local terminal to http://localhost:9999/hello and check the Jager UI at: http://localhost:16686 for the tracing info
 
 Example:
 
