@@ -11,6 +11,7 @@ import (
 	"github.com/labstack/echo/v4/middleware"
 	"go.opentelemetry.io/contrib/instrumentation/github.com/labstack/echo/otelecho"
 	otelglobal "go.opentelemetry.io/otel/api/global"
+	"go.opentelemetry.io/otel/api/trace"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/exporters/otlp"
 	"go.opentelemetry.io/otel/label"
@@ -20,9 +21,9 @@ import (
 	"go.opentelemetry.io/otel/semconv"
 )
 
-var echoTracer = otelglobal.Tracer("echo-tracer")
+var echoTracer trace.Tracer
 
-func newTracerProvider(exporter export.SpanExporter) *sdktrace.TracerProvider {
+func newTracerProvider(exporter export.SpanExporter, name string) *sdktrace.TracerProvider {
 	// For the demonstration, use sdktrace.AlwaysSample sampler to sample all traces.
 	// In a production application, use sdktrace.ProbabilitySampler with a desired probability.
 	cfg := sdktrace.Config{
@@ -32,7 +33,7 @@ func newTracerProvider(exporter export.SpanExporter) *sdktrace.TracerProvider {
 	return sdktrace.NewTracerProvider(
 		sdktrace.WithConfig(cfg),
 		sdktrace.WithSyncer(exporter),
-		sdktrace.WithResource(resource.New(semconv.ServiceNameKey.String("EchoTracer"))))
+		sdktrace.WithResource(resource.New(semconv.ServiceNameKey.String(name))))
 }
 
 func newExporter() *otlp.Exporter {
@@ -51,15 +52,15 @@ func main() {
 	exporter := newExporter()
 	defer shutDownExporter(exporter)
 
-	tp := newTracerProvider(exporter)
-	otelglobal.SetTracerProvider(tp)
+	tp := newTracerProvider(exporter, "EchoTracerProvider")
+	echoTracer = tp.Tracer("echo-tracer")
 
 	if err := exporter.Start(); err != nil {
 		log.Fatal(err)
 	}
 
 	r := echo.New()
-	r.Use(otelecho.Middleware("server-name"))
+	r.Use(otelecho.Middleware("server-name", otelecho.WithTracerProvider(tp)))
 	r.Use(middleware.Logger())
 	r.Use(middleware.Recover())
 	r.GET("/hello", hello)
@@ -86,7 +87,7 @@ func hello(c echo.Context) error {
 	span3.SetAttributes(label.Key("error").String(err.Error()))
 	defer span3.End()
 	if err != nil {
-		return c.String(http.StatusBadRequest, "deu ruim")
+		return c.String(http.StatusInternalServerError, "deu ruim")
 	}
 
 	return c.String(http.StatusOK, "hello world!\n")
